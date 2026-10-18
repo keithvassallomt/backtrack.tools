@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Publish site/ to backtrack.tools: the bucket made to match it, then
+# CloudFront told to forget what it holds, so the change shows at once.
+# Pages are cached for five minutes at most.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+# shellcheck source=/dev/null
+. infra/resources.env
+aws s3 sync site/ "s3://$BUCKET/" --delete --cache-control "max-age=300"
+aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths '/*' \
+    --query 'Invalidation.[Id,Status]' --output text

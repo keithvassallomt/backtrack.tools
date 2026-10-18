@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# backtrack.tools on AWS: a private S3 bucket that only CloudFront reads, a
+# CloudFront distribution for backtrack.tools and www.backtrack.tools (www
+# redirects to the bare domain), its certificate, and the domain's records in
+# Route 53. Made once, and safe to run again: what it has made is recorded
+# in infra/resources.env, and a second run makes nothing twice.
+#
+# Needs the AWS CLI signed in to the account that holds backtrack.tools's
+# hosted zone, and jq.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+DOMAIN=backtrack.tools
+WWW=www.backtrack.tools
+REGION=eu-south-1
+BUCKET=backtrack-tools-site
+FUNCTION_NAME=backtrack-tools-www
+STATE=infra/resources.env
+# The hosted zone every Route 53 alias to a CloudFront distribution names.
+CLOUDFRONT_ZONE=Z2FDTNDATAQYW2
+# AWS's managed cache policy "CachingOptimized".
+CACHING_OPTIMIZED=658327ea-f89d-4fab-a63d-7e88639e58f6
+
+touch "$STATE"
+# shellcheck source=/dev/null
+. "$STATE"
+remember() {
+    { grep -v "^$1=" "$STATE" || true; echo "$1=$2"; } > "$STATE.new"
+    mv "$STATE.new" "$STATE"
+    printf -v "$1" '%s' "$2"
+}
+step() { printf '\n== %s\n' "$*"; }
+
+zone="$(aws route53 list-hosted-zones-by-name --dns-name "$DOMAIN" \
+    --query "HostedZones[?Name=='$DOMAIN.'].Id | [0]" --output text)"
+zone="${zone#/hostedzone/}"
+remember ZONE "$zone"
+
+step "Bucket $BUCKET, in $REGION"
+if ! aws s3api head-bucket --bucket "$BUCKET" >/dev/null 2>&1; then
+    aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" \
+        --create-bucket-configuration "LocationConstraint=$REGION" >/dev/null
+fi
+aws s3api put-public-access-block --bucket "$BUCKET" --public-access-block-configuration \
+    BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
+remember BUCKET "$BUCKET"
+
+step "Certificate for $DOMAIN and $WWW, in us-east-1 as CloudFront requires"
+if [ -z "${CERTIFICATE:-}" ]; then
+    remember CERTIFICATE "$(aws acm request-certificate --region us-east-1 \
+        --domain-name "$DOMAIN" --subject-alternative-names "$WWW" \
+        --validation-method DNS --query CertificateArn --output text)"
+fi
+# ACM names the validation records a few seconds after the request.
+for _ in $(seq 60); do
+    records="$(aws acm describe-certificate --region us-east-1 --certificate-arn "$CERTIFICATE" \
+        --query 'Certificate.DomainValidationOptions[].ResourceRecord' --output json)"
+    [ "$(jq '. // [] | map(select(. != null)) | length' <<<"$records")" -eq 2 ] && break
+    sleep 2
+done
+aws route53 change-resource-record-sets --hosted-zone-id "$zone" --change-batch "$(jq '{Changes:
+    (unique_by(.Name) | map({Action: "UPSERT", ResourceRecordSet:
+        {Name: .Name, Type: .Type, TTL: 300, ResourceRecords: [{Value: .Value}]}}))}' <<<"$records")" >/dev/null
+echo "waiting for ACM to validate it (a few minutes)"
+aws acm wait certificate-validated --region us-east-1 --certificate-arn "$CERTIFICATE"
+
+step "Origin access control: CloudFront signs its requests to the bucket"
+if [ -z "${ORIGIN_ACCESS:-}" ]; then
+    remember ORIGIN_ACCESS "$(aws cloudfront create-origin-access-control --origin-access-control-config \
+        "$(jq -n --arg name "$BUCKET" '{Name: $name, Description: "backtrack.tools reads its bucket",
+            SigningProtocol: "sigv4", SigningBehavior: "always", OriginAccessControlOriginType: "s3"}')" \
+        --query OriginAccessControl.Id --output text)"
+fi
+
+step "The www redirect, $FUNCTION_NAME"
+config="Comment=www.backtrack.tools to backtrack.tools,Runtime=cloudfront-js-2.0"
+if [ -z "${FUNCTION:-}" ]; then
+    remember FUNCTION "$(aws cloudfront create-function --name "$FUNCTION_NAME" \
+        --function-config "$config" --function-code fileb://infra/www-redirect.js \
+        --query FunctionSummary.FunctionMetadata.FunctionARN --output text)"
+else
+    aws cloudfront update-function --name "$FUNCTION_NAME" --function-config "$config" \
+        --function-code fileb://infra/www-redirect.js --if-match "$(aws cloudfront describe-function \
+        --name "$FUNCTION_NAME" --query ETag --output text)" >/dev/null
+fi
+aws cloudfront publish-function --name "$FUNCTION_NAME" --if-match "$(aws cloudfront describe-function \
+    --name "$FUNCTION_NAME" --query ETag --output text)" >/dev/null
+
+step "Distribution"
+if [ -z "${DISTRIBUTION:-}" ]; then
+    remember DISTRIBUTION "$(aws cloudfront create-distribution --distribution-config "$(jq -n \
+        --arg ref "backtrack.tools-$(date +%s)" --arg domain "$DOMAIN" --arg www "$WWW" \
+        --arg origin "$BUCKET.s3.$REGION.amazonaws.com" --arg access "$ORIGIN_ACCESS" \
+        --arg cache "$CACHING_OPTIMIZED" --arg function "$FUNCTION" --arg certificate "$CERTIFICATE" '{
+        CallerReference: $ref,
+        Comment: "backtrack.tools",
+        Enabled: true,
+        Aliases: {Quantity: 2, Items: [$domain, $www]},
+        DefaultRootObject: "index.html",
+        Origins: {Quantity: 1, Items: [{Id: "bucket", DomainName: $origin,
+            OriginAccessControlId: $access, S3OriginConfig: {OriginAccessIdentity: ""}}]},
+        DefaultCacheBehavior: {
+            TargetOriginId: "bucket",
+            ViewerProtocolPolicy: "redirect-to-https",
+            CachePolicyId: $cache,
+            Compress: true,
+            AllowedMethods: {Quantity: 2, Items: ["GET", "HEAD"],
+                CachedMethods: {Quantity: 2, Items: ["GET", "HEAD"]}},
+            FunctionAssociations: {Quantity: 1, Items: [{EventType: "viewer-request", FunctionARN: $function}]}
+        },
+        # The bucket answers 403 for a path it does not have; the page stands in.
+        CustomErrorResponses: {Quantity: 1, Items: [{ErrorCode: 403, ResponsePagePath: "/index.html",
+            ResponseCode: "404", ErrorCachingMinTTL: 60}]},
+        ViewerCertificate: {ACMCertificateArn: $certificate, SSLSupportMethod: "sni-only",
+            MinimumProtocolVersion: "TLSv1.2_2021"},
+        PriceClass: "PriceClass_100",
+        HttpVersion: "http2and3",
+        IsIPV6Enabled: true
+    }')" --query Distribution.Id --output text)"
+fi
+read -r arn cloudfront_domain <<<"$(aws cloudfront get-distribution --id "$DISTRIBUTION" \
+    --query '[Distribution.ARN, Distribution.DomainName]' --output text)"
+
+step "Bucket policy: this distribution, and nothing else, reads the bucket"
+aws s3api put-bucket-policy --bucket "$BUCKET" --policy "$(jq -n --arg bucket "$BUCKET" --arg arn "$arn" '{
+    Version: "2012-10-17",
+    Statement: [{Sid: "CloudFrontReads", Effect: "Allow",
+        Principal: {Service: "cloudfront.amazonaws.com"},
+        Action: "s3:GetObject", Resource: "arn:aws:s3:::\($bucket)/*",
+        Condition: {StringEquals: {"AWS:SourceArn": $arn}}}]}')"
+
+step "Records: $DOMAIN and $WWW to the distribution"
+aws route53 change-resource-record-sets --hosted-zone-id "$zone" --change-batch "$(jq -n \
+    --arg domain "$DOMAIN" --arg www "$WWW" --arg target "$cloudfront_domain" --arg zone "$CLOUDFRONT_ZONE" '{
+    Changes: [[$domain, $www][] as $name | ["A", "AAAA"][] as $type | {Action: "UPSERT",
+        ResourceRecordSet: {Name: $name, Type: $type,
+            AliasTarget: {HostedZoneId: $zone, DNSName: $target, EvaluateTargetHealth: false}}}]}')" >/dev/null
+
+step "The site"
+infra/deploy
+echo "waiting for the distribution to reach every edge (up to fifteen minutes)"
+aws cloudfront wait distribution-deployed --id "$DISTRIBUTION"
+echo "https://$DOMAIN is served by $DISTRIBUTION ($cloudfront_domain)"
