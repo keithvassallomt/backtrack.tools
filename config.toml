@@ -1,0 +1,17 @@
+# Zola's settings for backtrack.tools. `just build` builds into public/.
+base_url = "https://backtrack.tools"
+title = "Backtrack"
+default_language = "en"
+
+compile_sass = false
+build_search_index = false
+generate_feeds = false
+minify_html = false
+
+[markdown]
+smart_punctuation = true
+
+[slugify]
+paths = "on"
+taxonomies = "on"
+anchors = "on"
