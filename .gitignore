@@ -1,2 +1,9 @@
 infra/resources.env.new
 /public/
+# What the full site's branch fetches and makes, never committed.
+/.cache/
+/content/guides/
+/content/install.md
+/content/changelog.md
+/assets/
+/static/processed_images/

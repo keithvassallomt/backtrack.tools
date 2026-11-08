@@ -3,11 +3,19 @@
 # public/, then CloudFront told to forget what it holds, so the change shows at
 # once. Pages are cached for five minutes at most. A build that fails stops
 # here, before anything is uploaded.
+#
+# The site is built from the commit checked out, not the working tree: what
+# the full site's branch (stage-20-site) fetches and makes stays behind after
+# switching here, and none of it belongs on the coming-soon page. Commit a
+# change before deploying it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # shellcheck source=/dev/null
 . infra/resources.env
-zola build
+src="$(mktemp -d)"
+trap 'rm -rf "$src"' EXIT
+git archive HEAD | tar -x -C "$src"
+zola --root "$src" build --output-dir "$PWD/public" --force
 aws s3 sync public/ "s3://$BUCKET/" --delete --cache-control "max-age=300"
 aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION" --paths '/*' \
     --query 'Invalidation.[Id,Status]' --output text
