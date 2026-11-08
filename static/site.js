@@ -138,6 +138,7 @@
   stories(document.querySelector('.b-railwrap'));
   day(document.querySelector('.b-day'));
   homes(document.querySelectorAll('.b-home'));
+  video(document.querySelector('.b-video'));
 
   // The opening: a Documents folder, rewound a backup at a time.
   function rewind(grid) {
@@ -469,5 +470,37 @@
     document.addEventListener('pointerdown', function (e) {
       if (openCard && !e.target.closest('.b-home.open')) set(null);
     });
+  }
+
+  // Rewind, moving: it plays while it is on screen, unless the system asks
+  // for reduced motion (then its still stays) or the visitor paused it.
+  function video(figure) {
+    if (!figure) return;
+    var v = figure.querySelector('video');
+    var button = figure.querySelector('.b-play');
+    var wanted = !reduced.matches;
+    var seen = false;
+    var label = function () { button.textContent = v.paused ? 'Play' : 'Pause'; };
+    var update = function () {
+      if (wanted && seen) {
+        v.preload = 'auto';
+        var playing = v.play();
+        if (playing) playing.catch(function () { /* the still stays */ });
+      } else {
+        v.pause();
+      }
+    };
+    button.hidden = false;
+    button.addEventListener('click', function () { wanted = v.paused; update(); });
+    v.addEventListener('play', label);
+    v.addEventListener('pause', label);
+    reduced.addEventListener('change', function () { wanted = !reduced.matches; update(); });
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) { seen = entries[0].isIntersecting; update(); }, { threshold: 0.25 }).observe(v);
+    } else {
+      seen = true;
+      update();
+    }
+    label();
   }
 })();

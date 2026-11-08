@@ -592,3 +592,9 @@ kbd { display: inline-flex; justify-content: center; min-width: 30px; padding: 2
 .b-copy.done .idle { display: none; }
 .b-copy.done .ok { display: block; }
 .b-copy.done .lbl { display: inline; }
+
+/* Rewind, moving: a silent loop, paused for reduced motion */
+.b-video { position: relative; margin: 0; }
+.b-video video { display: block; width: 100%; height: auto; background: var(--p1); }
+.b-play { position: absolute; right: 16px; bottom: 16px; min-height: 44px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--line2); background: var(--pop); color: var(--text); font-weight: 600; font-size: 14px; cursor: pointer; }
+.b-play:hover { background: var(--p2); }

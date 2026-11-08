@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# The home page's Rewind video from a screen recording (S20-T6;
+# Backtrack's docs/screenshots.md says how to record it):
+#
+#     scripts/make-video RECORDING
+#
+# Writes static/video/rewind.webm and rewind.mp4 (silent, 1600 pixels wide)
+# and rewind.jpg, the recording's first frame, shown before it plays and in
+# its place when the system asks for reduced motion; then data/video.json,
+# whose presence tells the home page to show the video. Fails if the still
+# and either video come to 3 MB or more, so the page stays quick.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+in="$(realpath "${1:?usage: scripts/make-video RECORDING}")"
+out=static/video
+mkdir -p "$out"
+scale="scale=1600:-2:flags=lanczos"
+ffmpeg -y -loglevel error -i "$in" -an -vf "$scale,fps=30" \
+    -c:v libvpx-vp9 -b:v 0 -crf 42 -row-mt 1 -deadline good "$out/rewind.webm"
+ffmpeg -y -loglevel error -i "$in" -an -vf "$scale,fps=30,format=yuv420p" \
+    -c:v libx264 -preset slow -crf 28 -movflags +faststart "$out/rewind.mp4"
+ffmpeg -y -loglevel error -i "$in" -vf "$scale" -frames:v 1 -q:v 3 "$out/rewind.jpg"
+
+read -r width height < <(ffprobe -v error -select_streams v:0 -show_entries stream=width,height \
+    -of csv=p=0:s=x "$out/rewind.mp4" | tr x ' ')
+printf '{ "width": %d, "height": %d }\n' "$width" "$height" > data/video.json
+
+still=$(stat -c %s "$out/rewind.jpg")
+for video in "$out/rewind.webm" "$out/rewind.mp4"; do
+    total=$(( $(stat -c %s "$video") + still ))
+    printf '%s with its still: %d kB\n' "$video" $(( total / 1000 ))
+    if [ "$total" -ge 3000000 ]; then
+        echo "make-video: $video and its still come to 3 MB or more; record a shorter loop." >&2
+        exit 1
+    fi
+done

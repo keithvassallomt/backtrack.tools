@@ -33,6 +33,10 @@ built, so the site always describes that release.
 - `scripts/check-site` checks the built site: every link within it, the
   sections Backtrack's Preferences link to, the home page's commands against
   the install guide's, and no Unreleased section in the changelog.
+- `scripts/make-video RECORDING` makes the home page's Rewind video from a
+  screen recording (Backtrack's `docs/screenshots.md` says how to record
+  it): `static/video/` and `data/video.json`, whose presence puts the video
+  in place of the Rewind screenshot. Commit both.
 - `scripts/check-contrast` computes the contrast of every text colour against
   its background, in the dark and the light style, against WCAG AA.
 - `public/` is the built site. It is not committed.

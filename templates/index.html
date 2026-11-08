@@ -120,7 +120,18 @@
   <div class="b-inner">
     <div class="b-tag"><b>13:00</b><span>Backup 2 of 13</span></div>
     <h2 class="b-giant">Rewind.</h2>
+    {%- set video = load_data(path="data/video.json", required=false) %}
+    {%- if video %}
+    <figure class="b-video">
+      <video class="b-shot" muted loop playsinline preload="none" poster="/video/rewind.jpg" width="{{ video.width }}" height="{{ video.height }}" aria-label="Rewind going back through a folder’s backups, and a file being restored">
+        <source src="/video/rewind.webm" type="video/webm">
+        <source src="/video/rewind.mp4" type="video/mp4">
+      </video>
+      <button class="b-play" type="button" hidden>Play</button>
+    </figure>
+    {%- else %}
     {{ <shot src="rewind.png" width={1920} alt="Rewind: a folder in front, its earlier backups receding behind it, and a timeline down the right" class="b-shot" /> }}
+    {%- endif %}
     <ul class="b-keys">
       <li><kbd>↑</kbd>One backup back</li>
       <li><kbd>↓</kbd>One forward</li>
