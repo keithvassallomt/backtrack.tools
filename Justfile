@@ -1,6 +1,14 @@
-# backtrack.tools: the site in site/, served from S3 through CloudFront.
+# backtrack.tools: built with Zola into public/, served from S3 through CloudFront.
 
-# Publish site/ to backtrack.tools.
+# Build the site into public/.
+build:
+    zola build
+
+# Show the site on http://localhost:1111, rebuilt whenever a file changes.
+serve:
+    zola serve
+
+# Build the site, then publish it to backtrack.tools. A failed build uploads nothing.
 deploy:
     infra/deploy
 

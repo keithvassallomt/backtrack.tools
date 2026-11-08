@@ -87,6 +87,11 @@ aws cloudfront publish-function --name "$FUNCTION_NAME" --if-match "$(aws cloudf
     --name "$FUNCTION_NAME" --query ETag --output text)" >/dev/null
 
 step "Distribution"
+# What every run keeps true of the distribution, new or not: the bucket answers
+# 403 for a path it does not have (CloudFront may not list it), and the
+# visitor gets the site's 404 page, with the status 404.
+in_line='.CustomErrorResponses = {Quantity: 1, Items: [{ErrorCode: 403,
+    ResponsePagePath: "/404.html", ResponseCode: "404", ErrorCachingMinTTL: 60}]}'
 if [ -z "${DISTRIBUTION:-}" ]; then
     remember DISTRIBUTION "$(aws cloudfront create-distribution --distribution-config "$(jq -n \
         --arg ref "backtrack.tools-$(date +%s)" --arg domain "$DOMAIN" --arg www "$WWW" \
@@ -108,15 +113,21 @@ if [ -z "${DISTRIBUTION:-}" ]; then
                 CachedMethods: {Quantity: 2, Items: ["GET", "HEAD"]}},
             FunctionAssociations: {Quantity: 1, Items: [{EventType: "viewer-request", FunctionARN: $function}]}
         },
-        # The bucket answers 403 for a path it does not have; the page stands in.
-        CustomErrorResponses: {Quantity: 1, Items: [{ErrorCode: 403, ResponsePagePath: "/index.html",
-            ResponseCode: "404", ErrorCachingMinTTL: 60}]},
         ViewerCertificate: {ACMCertificateArn: $certificate, SSLSupportMethod: "sni-only",
             MinimumProtocolVersion: "TLSv1.2_2021"},
         PriceClass: "PriceClass_100",
         HttpVersion: "http2and3",
         IsIPV6Enabled: true
-    }')" --query Distribution.Id --output text)"
+    } | '"$in_line")" --query Distribution.Id --output text)"
+else
+    current="$(aws cloudfront get-distribution-config --id "$DISTRIBUTION")"
+    wanted="$(jq "$in_line" <<<"$(jq .DistributionConfig <<<"$current")")"
+    if [ "$(jq -S . <<<"$wanted")" != "$(jq -S .DistributionConfig <<<"$current")" ]; then
+        aws cloudfront update-distribution --id "$DISTRIBUTION" --distribution-config "$wanted" \
+            --if-match "$(jq -r .ETag <<<"$current")" >/dev/null
+        echo "updated; waiting for CloudFront to deploy the change (a few minutes)"
+        aws cloudfront wait distribution-deployed --id "$DISTRIBUTION"
+    fi
 fi
 read -r arn cloudfront_domain <<<"$(aws cloudfront get-distribution --id "$DISTRIBUTION" \
     --query '[Distribution.ARN, Distribution.DomainName]' --output text)"
