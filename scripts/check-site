@@ -79,7 +79,9 @@ def main() -> int:
         page.feed(file.read_text())
         pages[url_of(file)] = page
 
-    def check(link: str, where: str) -> None:
+    def check(link: str, where: str, label: str = "") -> None:
+        """A link on the page at `where`; `label` names it in a fault instead."""
+        label = label or where
         if link.startswith(SITE):
             link = link[len(SITE):] or "/"
         parts = urlsplit(urljoin(SITE + where, link))
@@ -89,18 +91,18 @@ def main() -> int:
         target = file_of(path)
         if target is None:
             hint = " (without its trailing slash)" if file_of(path + "/") else ""
-            faults.append(f"{where}: a link to {path}{hint}, which does not exist")
+            faults.append(f"{label}: a link to {path}{hint}, which does not exist")
             return
         if parts.fragment and target.suffix == ".html":
             page = pages[url_of(target)]
             if unquote(parts.fragment) not in page.ids:
-                faults.append(f"{where}: a link to {path}#{parts.fragment}, which has no such section")
+                faults.append(f"{label}: a link to {path}#{parts.fragment}, which has no such section")
 
     for where, page in pages.items():
         for link in page.links:
             check(link, where)
     for link in REQUIRED:
-        check(link, "(sections Backtrack links to)")
+        check(link, "/", "Backtrack itself")
 
     home = (PUBLIC / "index.html").read_text()
     install = (PUBLIC / "install" / "index.html").read_text()
