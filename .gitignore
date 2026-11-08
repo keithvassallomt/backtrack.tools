@@ -1,2 +1,10 @@
 infra/resources.env.new
 /public/
+/.cache/
+# Written by scripts/fetch-docs from Backtrack's repository, never committed.
+/content/guides/
+/content/install.md
+/content/changelog.md
+/assets/
+# Zola's cache of the WebP pictures it makes.
+/static/processed_images/

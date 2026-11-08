@@ -1,0 +1,29 @@
+{
+  "_about": "The Documents folder the home page's opening rewinds through. Index 0 is the folder as it is now; 1 is the newest backup and the last the oldest, numbered as Rewind numbers them ('Backup 1 of 13' is the newest). Each file is in the backups from index `to` (newest) to `from` (oldest). One missing from the newest backup (index 1) is marked deleted; one whose copy differs from the newest backup's, from `changedFrom` on, is marked changed. Every step back changes something on screen.",
+  "backups": [
+    { "when": "Today (Now)", "short": "Now", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 14:00", "short": "14:00", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 13:00", "short": "13:00", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 12:00", "short": "12:00", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 11:00", "short": "11:00", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 10:00", "short": "10:00", "group": "Today" },
+    { "when": "Thu 5 Nov 2026, 09:00", "short": "09:00", "group": "Today" },
+    { "when": "Wed 4 Nov 2026, 17:00", "short": "Wed 17:00", "group": "4 Nov" },
+    { "when": "Wed 4 Nov 2026, 15:00", "short": "Wed 15:00", "group": "4 Nov" },
+    { "when": "Wed 4 Nov 2026, 11:00", "short": "Wed 11:00", "group": "4 Nov" },
+    { "when": "Tue 3 Nov 2026, 16:00", "short": "Tue 16:00", "group": "3 Nov" },
+    { "when": "Tue 3 Nov 2026, 10:00", "short": "Tue 10:00", "group": "3 Nov" },
+    { "when": "Mon 2 Nov 2026, 15:00", "short": "Mon 15:00", "group": "2 Nov" },
+    { "when": "Mon 2 Nov 2026, 09:00", "short": "Mon 09:00", "group": "2 Nov" }
+  ],
+  "files": [
+    { "name": "Recipes", "folder": true, "from": 12, "to": 0 },
+    { "name": "Garden club newsletter.odt", "ext": "odt", "from": 10, "to": 0, "changedFrom": 5 },
+    { "name": "harbour.jpg", "ext": "jpg", "from": 13, "to": 0, "changedFrom": 6 },
+    { "name": "Holiday plans.odt", "ext": "odt", "from": 7, "to": 0, "changedFrom": 2 },
+    { "name": "Insurance renewal.pdf", "ext": "pdf", "from": 11, "to": 9 },
+    { "name": "Letter to the council.odt", "ext": "odt", "from": 9, "to": 4 },
+    { "name": "Shopping list.txt", "ext": "txt", "from": 0, "to": 0 },
+    { "name": "Tax return 2025.pdf", "ext": "pdf", "from": 6, "to": 0, "changedFrom": 3 }
+  ]
+}

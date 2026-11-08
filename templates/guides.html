@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="b-page">
+  <div class="b-page-head">
+    <h1 class="b-title">Guides<em>, step by step.</em></h1>
+    <div class="b-intro">{{ section.content | safe }}</div>
+  </div>
+  <ol class="b-guides">
+    {%- for g in section.extra.guides %}
+    <li><a href="{{ g.url }}"><span class="n">{% if loop.index < 10 %}0{% endif %}{{ loop.index }}</span><span class="t">{{ g.title }}</span><span class="s">{{ g.summary }}</span></a></li>
+    {%- endfor %}
+  </ol>
+</div>
+{% endblock main %}

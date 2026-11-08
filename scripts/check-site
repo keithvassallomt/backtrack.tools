@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+"""Check the built site in public/ before it is published.
+
+- Every link, picture, script and stylesheet within the site leads to a file
+  that exists, and a link to #a-section to a page with that section.
+- The sections Backtrack's Preferences link to are there.
+- Every command in the home page's Get Backtrack section is, character for
+  character, a line of a command the install page gives.
+- The changelog shows no Unreleased section.
+
+Prints each fault and exits 1 if there is any. Links to other sites are not
+followed.
+"""
+
+import html
+import re
+import sys
+from html.parser import HTMLParser
+from pathlib import Path
+from urllib.parse import unquote, urljoin, urlsplit
+
+PUBLIC = Path(__file__).resolve().parent.parent / "public"
+SITE = "https://backtrack.tools"
+
+# Sections that Backtrack itself links to (S20-T11), so they must not move.
+REQUIRED = [
+    "/guides/file-manager-integration/#from-a-package",
+    "/guides/file-manager-integration/#from-the-flatpak",
+    "/guides/snapper/#giving-backtrack-access",
+]
+
+
+class Page(HTMLParser):
+    LINKS = {"a": "href", "link": "href", "img": "src", "script": "src", "source": "src", "video": "poster"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.ids: set[str] = set()
+        self.links: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        a = dict(attrs)
+        if a.get("id"):
+            self.ids.add(a["id"])
+        if tag == "a" and a.get("name"):
+            self.ids.add(a["name"])
+        if tag in self.LINKS and a.get(self.LINKS[tag]):
+            self.links.append(a[self.LINKS[tag]])
+        if tag == "meta" and a.get("property") in ("og:image", "og:url"):
+            self.links.append(a.get("content", ""))
+
+
+def url_of(file: Path) -> str:
+    rel = file.relative_to(PUBLIC).as_posix()
+    return "/" + (rel[: -len("index.html")] if rel.endswith("index.html") else rel)
+
+
+def file_of(path: str) -> Path | None:
+    target = PUBLIC / unquote(path).lstrip("/")
+    if path.endswith("/"):
+        target = target / "index.html"
+    return target if target.is_file() else None
+
+
+def main() -> int:
+    faults: list[str] = []
+    pages: dict[str, Page] = {}
+    for file in sorted(PUBLIC.rglob("*.html")):
+        page = Page()
+        page.feed(file.read_text())
+        pages[url_of(file)] = page
+
+    def check(link: str, where: str) -> None:
+        if link.startswith(SITE):
+            link = link[len(SITE):] or "/"
+        parts = urlsplit(urljoin(SITE + where, link))
+        if parts.scheme not in ("http", "https") or f"{parts.scheme}://{parts.netloc}" != SITE:
+            return
+        path = parts.path or "/"
+        target = file_of(path)
+        if target is None:
+            hint = " (without its trailing slash)" if file_of(path + "/") else ""
+            faults.append(f"{where}: a link to {path}{hint}, which does not exist")
+            return
+        if parts.fragment and target.suffix == ".html":
+            page = pages[url_of(target)]
+            if unquote(parts.fragment) not in page.ids:
+                faults.append(f"{where}: a link to {path}#{parts.fragment}, which has no such section")
+
+    for where, page in pages.items():
+        for link in page.links:
+            check(link, where)
+    for link in REQUIRED:
+        check(link, "(sections Backtrack links to)")
+
+    home = (PUBLIC / "index.html").read_text()
+    install = (PUBLIC / "install" / "index.html").read_text()
+    given = set()
+    for block in re.findall(r"<pre[^>]*><code[^>]*>(.*?)</code></pre>", install, re.S):
+        given.update(line.strip() for line in html.unescape(block).splitlines())
+    shown = [html.unescape(c) for c in re.findall(r'<div class="b-cmd"><code>(.*?)</code>', home, re.S)]
+    if not shown:
+        faults.append("/: the Get Backtrack section shows no commands")
+    for command in shown:
+        if command not in given:
+            faults.append(f"/: the command `{command}` is not one the install page gives")
+
+    changelog = (PUBLIC / "changelog" / "index.html").read_text()
+    if re.search(r"unreleased", changelog, re.I):
+        faults.append("/changelog/: an Unreleased section reached the page")
+
+    for fault in faults:
+        print(f"check-site: {fault}", file=sys.stderr)
+    links = sum(len(p.links) for p in pages.values())
+    print(f"check-site: {len(pages)} pages, {links} links, {len(shown)} commands"
+          + (f": {len(faults)} faults" if faults else ": all good"))
+    return 1 if faults else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

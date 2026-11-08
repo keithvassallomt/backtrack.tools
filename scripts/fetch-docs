@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+"""Bring Backtrack's guides, install guide and changelog into the site.
+
+    scripts/fetch-docs [REF] [--repo URL-or-path]
+
+REF is a tag, branch or commit of Backtrack's repository; by default the newest
+release tag (vX.Y.Z, no -rc). Nothing written here is committed: the site is
+rendered from the repository at REF every time, so it cannot drift from the
+release it describes.
+
+What it writes:
+- content/guides/: one page per guide that docs/README.md lists under
+  "Guides", in that order, and the section page that lists them. The install
+  guide (installing.md) becomes content/install.md, served at /install/.
+- content/changelog.md: CHANGELOG.md's released versions, newest first,
+  without the Unreleased section or the rules comment.
+- assets/guides/images/: docs/images/, from which the build makes WebP
+  copies of the pictures it shows.
+
+On the way, each guide loses its first heading to the page's title; every
+heading keeps the anchor GitHub gives it; a link to another guide becomes a
+link to its page on the site; and a link to anything else in the repository
+becomes a link to it on GitHub at REF.
+"""
+
+import argparse
+import datetime
+import html
+import posixpath
+import re
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_URL = "https://github.com/keithvassallomt/backtrack"
+ROOT = Path(__file__).resolve().parent.parent
+CACHE = ROOT / ".cache" / "backtrack.git"
+CONTENT = ROOT / "content"
+IMAGES = ROOT / "assets" / "guides" / "images"
+INSTALL_GUIDE = "installing.md"
+
+
+def git(*args: str, binary: bool = False):
+    out = subprocess.run(["git", "-C", str(CACHE), *args], check=True, capture_output=True)
+    return out.stdout if binary else out.stdout.decode()
+
+
+def update_cache(repo: str) -> None:
+    """A bare copy of the repository, fetched again on every run."""
+    if not CACHE.exists():
+        CACHE.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["git", "clone", "--quiet", "--bare", "--filter=blob:none", repo, str(CACHE)], check=True)
+    else:
+        git("remote", "set-url", "origin", repo)
+    git("fetch", "--quiet", "--prune", "--tags", "--force", "origin", "+refs/heads/*:refs/heads/*")
+
+
+def newest_release() -> str:
+    tags = [t for t in git("tag", "--list", "v*").split() if re.fullmatch(r"v\d+\.\d+\.\d+", t)]
+    if not tags:
+        sys.exit("fetch-docs: the repository has no release tag")
+    return max(tags, key=lambda t: tuple(int(n) for n in t[1:].split(".")))
+
+
+def show(ref: str, path: str) -> str:
+    try:
+        return git("show", f"{ref}:{path}")
+    except subprocess.CalledProcessError:
+        sys.exit(f"fetch-docs: {path} is not in {ref}")
+
+
+def object_type(ref: str, path: str) -> str | None:
+    try:
+        return git("cat-file", "-t", f"{ref}:{path}").strip()
+    except subprocess.CalledProcessError:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Headings: the anchor GitHub gives them
+
+def plain(markdown: str) -> str:
+    """A heading's text as GitHub reads it for the anchor."""
+    text = re.sub(r"!?\[([^\]]*)\]\([^)]*\)", r"\1", markdown)
+    text = re.sub(r"<[^>]+>", "", text)
+    text = text.replace("`", "")
+    text = re.sub(r"(\*\*|__|\*|_)(.+?)\1", r"\2", text)
+    return html.unescape(text)
+
+
+def github_anchor(text: str, seen: dict[str, int]) -> str:
+    slug = re.sub(r"[^\w\- ]", "", plain(text).strip().lower()).replace(" ", "-")
+    count = seen.get(slug, 0)
+    seen[slug] = count + 1
+    return slug if count == 0 else f"{slug}-{count}"
+
+
+def split_fences(text: str):
+    """Yield (line, in_code) for each line, with fenced code marked."""
+    fence = None
+    for line in text.split("\n"):
+        m = re.match(r"\s*(```+|~~~+)", line)
+        if fence is None and m:
+            fence = m.group(1)[0] * 3
+            yield line, True
+        elif fence is not None:
+            if line.strip().startswith(fence):
+                fence = None
+            yield line, True
+        else:
+            yield line, False
+
+
+# ---------------------------------------------------------------------------
+# Links
+
+class Linker:
+    def __init__(self, ref: str, pages: dict[str, str]):
+        self.ref = ref
+        self.pages = pages  # "docs/rewind.md" -> "/guides/rewind/"
+
+    def target(self, url: str, base: str) -> str:
+        """Where a link in the file at `base` should point on the site."""
+        if re.match(r"[a-z][a-z0-9+.-]*:", url, re.I) or url.startswith("#"):
+            return url
+        path, _, frag = url.partition("#")
+        frag = f"#{frag}" if frag else ""
+        resolved = posixpath.normpath(posixpath.join(posixpath.dirname(base), path))
+        if resolved in self.pages:
+            return self.pages[resolved] + frag
+        if resolved.startswith("docs/images/"):
+            return "/guides/images/" + resolved.removeprefix("docs/images/")
+        kind = object_type(self.ref, resolved)
+        if kind is None:
+            sys.exit(f"fetch-docs: {base} links to {url}, which is not in {self.ref}")
+        return f"{REPO_URL}/{'tree' if kind == 'tree' else 'blob'}/{self.ref}/{resolved}{frag}"
+
+    def rewrite(self, line: str, base: str) -> str:
+        # Images too: a link's target and a picture's are rewritten alike.
+        line = re.sub(r"\]\(([^)\s]+)\)", lambda m: f"]({self.target(m.group(1), base)})", line)
+        line = re.sub(r"^(\s*\[[^\]]+\]:\s*)(\S+)", lambda m: m.group(1) + self.target(m.group(2), base), line)
+        return line
+
+
+def image_line(line: str) -> str | None:
+    """A screenshot on a line of its own becomes the `shot` component
+    (templates/components.html), which gives it its size and a WebP copy."""
+    m = re.fullmatch(r"(\s*)!\[([^\]]*)\]\(images/([^)\s]+)\)\s*", line)
+    if not m:
+        return None
+    indent, alt, name = m.groups()
+    if '"' in alt:
+        sys.exit(f"fetch-docs: a picture's description has a double quote, which the shot component cannot take: {alt}")
+    return f'{indent}{{{{ <shot src="{name}" alt="{alt}" /> }}}}'
+
+
+# ---------------------------------------------------------------------------
+
+def first_paragraph(body: str) -> str:
+    for block in re.split(r"\n\s*\n", body.strip()):
+        if block and not block.lstrip().startswith(("#", "|", "-", "1.", "!", "```", "{{")):
+            return " ".join(plain(block).split())
+    return ""
+
+
+def toml_string(s: str) -> str:
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def guide_page(ref: str, name: str, linker: Linker, weight: int, total: int, template: str) -> str:
+    path = f"docs/{name}"
+    title = None
+    seen: dict[str, int] = {}
+    out = []
+    for line, in_code in split_fences(show(ref, path)):
+        if in_code:
+            out.append(line)
+            continue
+        heading = re.match(r"(#{1,6})\s+(.*?)\s*#*\s*$", line)
+        if heading and title is None and heading.group(1) == "#":
+            title = heading.group(2)
+            continue
+        if heading:
+            hashes, text = heading.groups()
+            out.append(f"{hashes} {linker.rewrite(text, path)} {{#{github_anchor(text, seen)}}}")
+            continue
+        shot = image_line(line)
+        out.append(shot if shot is not None else linker.rewrite(line, path))
+    if title is None:
+        sys.exit(f"fetch-docs: {path} has no title heading")
+    body = "\n".join(out).strip("\n") + "\n"
+    front = [
+        "+++",
+        f"title = {toml_string(plain(title))}",
+        f"description = {toml_string(first_paragraph(body))}",
+        f"weight = {weight}",
+        f'template = "{template}"',
+        "[extra]",
+        f"number = {weight}",
+        f"total = {total}",
+        f"source = {toml_string(f'{REPO_URL}/blob/{ref}/{path}')}",
+        "+++",
+    ]
+    return "\n".join(front) + "\n" + body
+
+
+def guides(ref: str) -> None:
+    index = show(ref, "docs/README.md")
+    section = re.search(r"^## Guides\s*\n(.*?)(?=^## |\Z)", index, re.M | re.S)
+    if not section:
+        sys.exit("fetch-docs: docs/README.md has no Guides section")
+    listed = re.findall(r"^- \[([^\]]+)\]\(([^)#\s]+\.md)\)", section.group(1), re.M)
+    intro = section.group(1).split("\n- ", 1)[0].strip()
+    pages = {f"docs/{name}": ("/install/" if name == INSTALL_GUIDE else f"/guides/{Path(name).stem}/") for _, name in listed}
+    linker = Linker(ref, pages)
+
+    shutil.rmtree(CONTENT / "guides", ignore_errors=True)
+    (CONTENT / "guides").mkdir(parents=True)
+    entries = []
+    for weight, (label, name) in enumerate(listed, start=1):
+        is_install = name == INSTALL_GUIDE
+        page = guide_page(ref, name, linker, weight, len(listed), "install.html" if is_install else "guide.html")
+        target = CONTENT / "install.md" if is_install else CONTENT / "guides" / name
+        target.write_text(page)
+        entries.append((label, pages[f"docs/{name}"], first_paragraph(page.split("+++", 2)[2])))
+
+    listing = ["+++", 'title = "Guides"', 'template = "guides.html"', 'sort_by = "weight"',
+               f"description = {toml_string(' '.join(plain(intro).split()))}", "[extra]", "guides = ["]
+    for label, url, summary in entries:
+        first = re.match(r".+?[.!?](?=\s|$)", summary)
+        listing.append(f"  {{ title = {toml_string(label)}, url = {toml_string(url)}, "
+                       f"summary = {toml_string(first.group(0) if first else summary)} }},")
+    listing += ["]", "+++", linker.rewrite(intro, "docs/README.md"), ""]
+    (CONTENT / "guides" / "_index.md").write_text("\n".join(listing))
+
+    shutil.rmtree(IMAGES, ignore_errors=True)
+    IMAGES.mkdir(parents=True)
+    for name in git("ls-tree", "--name-only", f"{ref}:docs/images").split():
+        (IMAGES / name).write_bytes(git("show", f"{ref}:docs/images/{name}", binary=True))
+    print(f"fetch-docs: {len(listed)} guides and {len(list(IMAGES.iterdir()))} images from {ref}")
+
+
+def changelog(ref: str) -> None:
+    text = show(ref, "CHANGELOG.md")
+    text = re.sub(r"\A\s*<!--.*?-->\s*", "", text, flags=re.S)
+    text = re.sub(r"^# Changelog\s*\n", "", text, count=1, flags=re.M)
+    text = re.sub(r"^\[Unreleased\]:.*\n?", "", text, flags=re.M | re.I)
+    parts = re.split(r"(?m)^(?=## )", text)
+    intro, versions = parts[0].strip(), []
+    for part in parts[1:]:
+        m = re.match(r"## \[([^\]]+)\](?: - (\d{4}-\d{2}-\d{2}))?\s*\n", part)
+        if not m:
+            sys.exit(f"fetch-docs: CHANGELOG.md has a section fetch-docs cannot read: {part.splitlines()[0]}")
+        version, date = m.groups()
+        if version.lower() == "unreleased":
+            continue
+        rest = part[m.end():]
+        when = ""
+        if date:
+            day = datetime.date.fromisoformat(date)
+            when = f'\n\n<p class="b-date"><time datetime="{date}">{day.day} {day:%B %Y}</time></p>'
+        versions.append(f"## {version} {{#v{version}}}{when}\n\n{rest.lstrip()}")
+    if not versions:
+        sys.exit("fetch-docs: CHANGELOG.md has no released version")
+    front = ["+++", 'title = "Changelog"', 'template = "changelog.html"', 'path = "changelog"',
+             f"description = {toml_string(' '.join(plain(intro).split()))}", "+++"]
+    (CONTENT / "changelog.md").write_text("\n".join(front) + "\n" + intro + "\n\n" + "\n".join(versions))
+    print(f"fetch-docs: changelog with {len(versions)} released versions")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("ref", nargs="?", help="tag, branch or commit; the newest release tag by default")
+    parser.add_argument("--repo", default=REPO_URL + ".git", help="where to fetch Backtrack from")
+    args = parser.parse_args()
+    update_cache(args.repo)
+    ref = args.ref or newest_release()
+    if object_type(ref, "") != "tree":
+        sys.exit(f"fetch-docs: {ref} is not a tag, branch or commit of {args.repo}")
+    guides(ref)
+    changelog(ref)
+
+
+if __name__ == "__main__":
+    main()

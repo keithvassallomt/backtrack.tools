@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block main %}
+<div class="b-page">
+  <div class="b-page-head">
+    <div class="b-tag"><span>Guide {{ page.extra.number }} of {{ page.extra.total }}</span></div>
+    <h1 class="b-title">{{ page.title }}</h1>
+  </div>
+  <div class="b-doc">
+    <nav class="b-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        {%- for h in page.toc %}
+        <li><a href="#{{ h.id }}">{{ h.title }}</a></li>
+        {%- endfor %}
+      </ul>
+      <p class="all"><a href="/guides/">All guides</a></p>
+    </nav>
+    <article class="prose">
+{{ page.content | safe }}
+    </article>
+  </div>
+</div>
+{% endblock main %}

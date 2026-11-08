@@ -1,0 +1,40 @@
+{
+  "_about": "The home page's stories and its day on a laptop, as approved in the prototype. Each story links to the guide that walks through it.",
+  "stories": [
+    { "n": "01", "title": "Deleted, and the Trash emptied",
+      "short": "Click the backup from before you deleted it, and the file is there. Click Restore.",
+      "text": "Open Backtrack and go to the folder the file was in. In the list of backups on the left, click one from before you deleted it, and the file is there, marked deleted. Select it and click Restore to put it back where it was.",
+      "guide": "Get a file back from an earlier backup", "href": "/guides/restoring/",
+      "img": "window-earlier-backup.png", "alt": "Backtrack’s window showing Documents in an earlier backup" },
+    { "n": "02", "title": "A rewrite spoiled it",
+      "short": "Right-click it in Files, choose Rewind This File… and go back to this morning. Keep Both keeps today’s version too.",
+      "text": "Right-click the document in GNOME Files, or in Dolphin’s Backtrack submenu, choose Rewind This File… and go back to a backup from this morning, then click Restore. Backtrack asks before it replaces anything: Keep Both puts this morning’s version under the name and keeps today’s beside it, with “(current)” added.",
+      "guide": "Go back through a folder’s history with Rewind", "href": "/guides/rewind/",
+      "img": "restore-question.png", "alt": "Backtrack asking whether to replace the newsletter or keep both" },
+    { "n": "03", "title": "The download you can’t find",
+      "short": "Search every backup for part of its name. Restore Latest Version puts it back where it was.",
+      "text": "Click the magnifying glass, or press Ctrl+F, and type part of the name. Files that are no longer on your computer come first, with the folder each was in and when it existed. Restore Latest Version puts the newest copy back in that folder.",
+      "guide": "Find a lost file with search", "href": "/guides/searching/",
+      "img": "search-deleted.png", "alt": "Search results with a boarding pass marked no longer on your disk" },
+    { "n": "04", "title": "Which version of the photo?",
+      "short": "Go back a backup at a time. Compare with Today shows each version beside the one you have now.",
+      "text": "Search for the picture and click View in Timeline. Click Older to step back one backup at a time. When the preview looks right, Compare with Today shows that version beside yours, and Restore This Version brings it back.",
+      "guide": "Find a lost file with search", "href": "/guides/searching/",
+      "img": "compare-picture.png", "alt": "Compare with Today showing an earlier photo beside today’s" },
+    { "n": "05", "title": "The laptop died",
+      "short": "On the new one, choose Already have backups? and point Backtrack at the drive. Your files come back where they were.",
+      "text": "Install Backtrack on the new computer and click Already have backups? Import… on the welcome screen. Choose the backups on the drive, type your passphrase, and pick Restore everything. You can carry on using the computer while it works.",
+      "guide": "Move to a new computer", "href": "/guides/new-computer/",
+      "img": "new-computer.png", "alt": "Backtrack restoring a home folder onto a new computer" }
+  ],
+  "day": [
+    { "key": "every", "label": "Every hour", "when": "Every hour", "text": "While you’re logged in, Backtrack backs up once an hour without you pressing anything." },
+    { "key": "metered", "label": "Metered", "when": "09:30 to 10:50", "text": "On a metered connection, such as a phone’s hotspot, it waits. The 10:00 backup runs at 10:50, once the laptop is back on an unmetered network." },
+    { "key": "battery", "label": "On battery", "when": "11:00 to 13:30", "text": "On battery it waits for the charger, for up to three hours after the last backup, then backs up anyway. Here the charger goes in at 13:30." },
+    { "key": "snapper", "label": "Snapper", "when": "12:15", "text": "If you use Snapper on btrfs, its snapshots show up in the timeline between backups, so there’s even more to go back to." },
+    { "key": "trash", "label": "Trash", "when": "14:10", "text": "Anything you put in the Trash between backups shows up in the timeline too, until the Trash is emptied." },
+    { "key": "asleep", "label": "Asleep", "when": "15:10 to 16:40", "text": "The laptop sleeps through the 15:30 backup, so Backtrack runs it as soon as it wakes, at 16:40." },
+    { "key": "away", "label": "Drive away", "when": "17:15 to 19:20", "text": "With the drive unplugged, Backtrack keeps your changes on this computer, small and encrypted, and sends them on when the drive is back." },
+    { "key": "quiet", "label": "Quiet", "when": "All day", "text": "It says nothing at all unless something needs you. Then you get a banner in the window and a notification with a Fix… button." }
+  ]
+}

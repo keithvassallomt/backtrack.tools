@@ -1,21 +1,362 @@
-{% extends "coming-soon.html" %}
-{% block description %}<meta name="description" content="Backtrack keeps your files backed up and lets you move back through time to bring back what you lost. Coming soon for Linux.">{% endblock %}
+{% extends "base.html" %}
+
+{% block head %}
+{%- set ld = config.extra.ld -%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Backtrack",
+  "description": {{ config.description | json_encode() | safe }},
+  "url": "{{ config.base_url }}/",
+  "applicationCategory": "UtilitiesApplication",
+  "applicationSubCategory": "Backup",
+  "operatingSystem": "Linux",
+  "license": "https://spdx.org/licenses/GPL-3.0-or-later.html",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+  "downloadUrl": "{{ config.base_url }}/install/",
+  "installUrl": "{{ config.base_url }}/install/",
+  "screenshot": "{{ get_url(path='img/og.jpg') }}",
+  "image": "{{ get_url(path='icon.svg') }}",
+  "codeRepository": "{{ config.extra.repo }}",
+  "author": { "@type": "Person", "name": "Keith Vassallo" }
+}
+</script>
+{% endblock head %}
+
 {% block main %}
-  <main>
-    <img class="icon" src="/icon.svg" alt="" width="128" height="128">
-    <h1>Backtrack</h1>
-    <p class="tagline">Browse your files as they were</p>
-    <span class="badge">Coming soon for Linux</span>
-    <div class="about">
-      <p>Backtrack keeps your files backed up and lets you move back through
-      time to bring back what you lost. Pick a folder, step back to this
-      morning or last week, and restore a file without needing to know how
-      backups work.</p>
+{%- set rw = load_data(path="data/rewind.json") -%}
+{%- set home = load_data(path="data/home.json") -%}
+{%- set n = rw.backups | length -%}
+{%- set copy = '<svg class="idle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg><svg class="ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><span class="lbl" aria-hidden="true">Copied</span>' -%}
+{%- set close = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>' -%}
+
+<section class="b-hero">
+  <div class="b-hero-grid" tabindex="0" role="region" aria-label="Rewind, on a Documents folder" aria-describedby="howto">
+
+    <div class="b-deck">
+      {%- for b in rw.backups %}
+      <div class="b-back {% if loop.index0 == 0 %}d0{% elif loop.index0 <= 5 %}d{{ loop.index0 }}{% else %}far{% endif %}" aria-hidden="true"><span>{{ b.short }}</span></div>
+      {%- endfor %}
+      <div class="b-front">
+        <div class="b-bar"><span>Home</span><span>›</span><b>Documents</b><span class="when">{{ rw.backups[0].when }}</span></div>
+        <div class="b-files" role="list" aria-label="Files in Documents">
+          {%- for f in rw.files %}{% if f.to == 0 %}
+          <div class="b-f" role="listitem"><span class="ic">
+            {%- if f.folder %}<svg viewBox="0 0 48 40" aria-hidden="true"><path class="fold" d="M2 6a4 4 0 0 1 4-4h12l5 5h19a4 4 0 0 1 4 4v23a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4z"/><path class="fold2" d="M2 13h44" stroke-width="2"/></svg>
+            {%- else %}<svg viewBox="0 0 40 48" aria-hidden="true"><path class="page" d="M5 1h20l12 12v30a4 4 0 0 1-4 4H5a4 4 0 0 1-4-4V5a4 4 0 0 1 4-4z"/><path class="page2" d="M25 1v9a3 3 0 0 0 3 3h9z"/></svg><span class="ext">{{ f.ext }}</span>{% endif -%}
+          </span><span class="nm">{{ f.name }}</span></div>
+          {%- endif %}{% endfor %}
+        </div>
+        <h1 class="b-h1">Browse your files <em>as they were.</em></h1>
+        <p class="b-lede">Backtrack backs up your files every hour. When one goes missing or gets spoiled, you open its folder as it was this morning, or last Tuesday, find the file, and bring it back.</p>
+        <div class="b-acts">
+          <a class="b-btn go" href="#install">Get Backtrack</a>
+          <a class="b-btn" href="{{ config.extra.repo }}">GitHub</a>
+        </div>
+      </div>
     </div>
-    <a class="github" href="https://github.com/keithvassallomt/backtrack">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-      Follow along on GitHub
-    </a>
-    <footer>© 2026 Keith Vassallo</footer>
-  </main>
-{% endblock %}
+
+    <div class="b-tl">
+      <button class="b-tl-arrow older" type="button" aria-label="Older" aria-disabled="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
+      <div class="b-tl-list" role="slider" tabindex="0" aria-label="Backups" aria-orientation="vertical" aria-valuemin="0" aria-valuemax="{{ n - 1 }}" aria-valuenow="0" aria-valuetext="{{ rw.backups[0].when }}">
+        {%- for b in rw.backups | reverse %}
+        {%- set k = n - loop.index %}
+        {%- if k == n - 1 or rw.backups[k + 1].group != b.group %}
+        <span class="b-tl-day" aria-hidden="true">{{ b.group }}</span>
+        {%- endif %}
+        <span class="b-tick{% if k == 0 %} cur{% endif %}" data-k="{{ k }}" aria-hidden="true"><span class="mk"></span><span class="tip">{{ b.when }}</span></span>
+        {%- endfor %}
+      </div>
+      <button class="b-tl-arrow newer" type="button" aria-label="Newer" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+    </div>
+
+    <div class="b-under">
+      <div class="b-cap"><b>{{ rw.backups[0].when }}</b><span>The folder as it is now</span></div>
+      <p class="b-howto" id="howto"><span class="desk">This is Rewind. Use the timeline or the <kbd>↑</kbd> <kbd>↓</kbd> keys to go back in time.</span><span class="phone">This is Rewind. Swipe the card to go back in time.</span></p>
+      <span class="sr" aria-live="polite"></span>
+    </div>
+  </div>
+  <a class="b-scrollcue" href="#stories" aria-label="Scroll down"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></a>
+  <script type="application/json" id="rewind-data">{{ rw | json_encode() | safe }}</script>
+</section>
+
+<section class="b-sec" id="stories">
+  <div class="b-inner">
+    <div class="b-tag"><b>14:00</b><span>Backup 1 of 13</span></div>
+    <h2 class="b-h2">It’s usually <em>one of these.</em></h2>
+    <div class="b-railwrap fr">
+      <div class="b-rail">
+        {%- for s in home.stories %}
+        <button class="b-story" type="button" aria-expanded="false" data-k="{{ loop.index0 }}" data-text="{{ s.text }}" data-guide="{{ s.guide }}" data-href="{{ s.href }}" data-alt="{{ s.alt }}">
+          <span class="txt"><span class="n">{{ s.n }}</span><span class="t">{{ s.title }}</span><span class="s">{{ s.short }}</span></span>
+          {{ <shot src={s.img} width={1200} alt="" /> }}
+        </button>
+        {%- endfor %}
+      </div>
+      {%- set s = home.stories[0] %}
+      <div class="b-szoom" role="dialog" aria-labelledby="story-title" aria-hidden="true">
+        <div class="txt">
+          <div class="n">{{ s.n }}</div>
+          <h3 id="story-title">{{ s.title }}</h3>
+          <p class="text">{{ s.text }}</p>
+          <p class="b-guide">Step by step: <a href="{{ s.href }}">{{ s.guide }} →</a></p>
+        </div>
+        {{ <shot src={s.img} width={1200} alt={s.alt} /> }}
+        <button class="b-close" type="button" aria-label="Close">{{ close | safe }}</button>
+      </div>
+    </div>
+    <div class="b-railnav">
+      <span class="lbl">Five things that happen to people</span>
+      <div class="b-dots" aria-hidden="true">{% for s in home.stories %}<i{% if loop.index0 < 3 %} class="on"{% endif %}></i>{% endfor %}</div>
+      <button class="b-step prev" type="button" aria-label="Previous story" aria-disabled="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+      <button class="b-step next" type="button" aria-label="Next story" aria-disabled="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>13:00</b><span>Backup 2 of 13</span></div>
+    <h2 class="b-giant">Rewind.</h2>
+    {{ <shot src="rewind.png" width={1920} alt="Rewind: a folder in front, its earlier backups receding behind it, and a timeline down the right" class="b-shot" /> }}
+    <ul class="b-keys">
+      <li><kbd>↑</kbd>One backup back</li>
+      <li><kbd>↓</kbd>One forward</li>
+      <li><kbd>Home</kbd>Today</li>
+      <li><kbd>End</kbd>The oldest</li>
+      <li><kbd>Ctrl+T</kbd>Rewind, from Backtrack’s window</li>
+      <li>It also opens from GNOME Files, Dolphin, the tray, and Backtrack’s icon in your app list.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>12:00</b><span>Backup 3 of 13</span></div>
+    <h2 class="b-h2">A restore <em>can’t make things worse.</em></h2>
+    <div class="b-grid2">
+      <div class="b-tile"><h3>Both dates</h3><p>When a file is in the way, Backtrack shows when each copy was last changed, and which is newer, before you choose.</p></div>
+      <div class="b-tile"><h3>Keep Both</h3><p>The backup’s version takes the name, and yours stays beside it with “(current)” added.</p></div>
+      <div class="b-tile"><h3>Undo</h3><p>Until you restore something else, the bar under the window’s header offers Undo, which puts everything back as it was.</p></div>
+      <div class="b-tile"><h3>Nothing deleted</h3><p>Every file a restore replaces goes to Recently Replaced Files, and stays there for up to thirty days.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>11:00</b><span>Backup 4 of 13</span></div>
+    <h2 class="b-h2">Backups that <em>look after themselves.</em></h2>
+    <p class="b-dayintro">One day on a laptop, hour by hour.</p>
+    <div class="b-day sel-every">
+      <div class="b-day-track" aria-hidden="true">
+        <div class="segs">
+          <span class="seg m-metered" data-day="metered" style="left: 17.86%; width: 9.52%"><i>Metered</i></span>
+          <span class="seg m-battery" data-day="battery" style="left: 28.57%; width: 17.86%"><i>On battery</i></span>
+          <span class="seg m-asleep" data-day="asleep" style="left: 58.33%; width: 10.72%"><i>Asleep</i></span>
+          <span class="seg m-away" data-day="away" style="left: 73.21%; width: 14.89%"><i>Drive away</i></span>
+          <span class="ev bell m-quiet" data-day="quiet" style="left: 96.5%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/><path d="M3 3l18 18"/></svg></span>
+        </div>
+        <div class="axis">
+          <span class="pt bk m-every" style="left: 7.14%"></span>
+          <span class="pt bk m-every" style="left: 14.29%"></span>
+          <span class="pt wait m-metered" style="left: 21.43%"></span>
+          <span class="pt bk m-every m-metered" style="left: 27.38%"></span>
+          <span class="pt wait m-battery" style="left: 34.52%"></span>
+          <span class="ev m-snapper" data-day="snapper" style="left: 37.5%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3l7 9-7 9-7-9z"/></svg></span>
+          <span class="pt wait m-battery" style="left: 41.67%"></span>
+          <span class="pt bk m-every m-battery" style="left: 46.43%"></span>
+          <span class="ev m-trash" data-day="trash" style="left: 51.19%"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></span>
+          <span class="pt bk m-every" style="left: 53.57%"></span>
+          <span class="pt wait m-asleep" style="left: 60.71%"></span>
+          <span class="pt bk m-every m-asleep" style="left: 69.05%"></span>
+          <span class="pt local m-away" style="left: 76.19%"></span>
+          <span class="pt local m-away" style="left: 83.33%"></span>
+          <span class="pt bk m-every m-away" style="left: 88.1%"></span>
+          <span class="pt bk m-every" style="left: 95.24%"></span>
+        </div>
+        <div class="hours">
+          {%- for h in range(start=7, end=22) %}<span style="left: {{ ((h - 7) / 14 * 100) | round(precision=2) }}%">{% if h < 10 %}0{% endif %}{{ h }}:00</span>{% endfor -%}
+        </div>
+      </div>
+      <div class="b-day-below">
+        <div class="b-chips-pick">
+          {%- for d in home.day %}
+          <button class="b-chip{% if loop.first %} on{% endif %}" type="button" aria-pressed="{{ loop.first }}" data-day="{{ d.key }}" data-when="{{ d.when }}" data-text="{{ d.text }}">{{ d.label }}</button>
+          {%- endfor %}
+          <ul class="b-legend" aria-hidden="true">
+            <li><i class="pt bk"></i>Backup</li>
+            <li><i class="pt wait"></i>Waiting</li>
+            <li><i class="pt local"></i>Kept on this computer</li>
+          </ul>
+        </div>
+        <div class="b-day-say" aria-live="polite">
+          <span class="when">{{ home.day[0].when }}</span>
+          <p>{{ home.day[0].text }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>10:00</b><span>Backup 5 of 13</span></div>
+    <h2 class="b-h2 home">At home on <em>GNOME</em> and <em>KDE</em>.</h2>
+    <p class="b-also">Also <em>Hyprland</em> and <em>COSMIC</em> and <em>Xfce</em> and <em>Cinnamon</em> and <em>MATE</em> and <em>Sway</em> and ...</p>
+    <div class="b-homes">
+
+      <article class="b-home">
+        <button class="b-home-btn" type="button" aria-expanded="false">
+          <span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span>
+          <span class="t">Files and Dolphin</span>
+          <span class="s">Right-click a file or folder to rewind it or browse its backups.</span>
+          <span class="more">More</span>
+        </button>
+        <div class="b-zoom" aria-hidden="true">
+          <h3>Files and Dolphin</h3>
+          <p>GNOME Files and Dolphin both get four items. Rewind This File… and Restore Previous Version… are on a file’s right-click menu, and Rewind This Folder… and Browse Backups of This Folder… are on a folder’s, or on the empty space inside one. In Dolphin they sit in a Backtrack submenu.</p>
+          <div class="b-shots">
+            <figure>{{ <shot src="files-menu.png" width={1148} alt="Backtrack’s items in the GNOME Files right-click menu" /> }}<figcaption>GNOME Files</figcaption></figure>
+            <figure>{{ <shot src="dolphin-menu.png" width={917} alt="Backtrack’s submenu in Dolphin’s right-click menu" /> }}<figcaption>Dolphin</figcaption></figure>
+          </div>
+          <button class="b-close" type="button" aria-label="Close">{{ close | safe }}</button>
+        </div>
+      </article>
+
+      <article class="b-home">
+        <button class="b-home-btn" type="button" aria-expanded="false">
+          <span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18"/><path d="M15 6.5h3"/></svg></span>
+          <span class="t">The tray</span>
+          <span class="s">On desktops with a tray, its icon tells you how backups stand.</span>
+          <span class="more">More</span>
+        </button>
+        <div class="b-zoom" aria-hidden="true">
+          <h3>The tray</h3>
+          <p>When something needs you, the icon says Backups need your attention. Its menu starts with how things stand, and has Rewind…, Open Backtrack, Back Up Now and Pause Backups.</p>
+          <div class="b-shots one">
+            <figure>{{ <shot src="tray-menu.png" width={626} alt="Backtrack’s tray menu" /> }}</figure>
+          </div>
+          <button class="b-close" type="button" aria-label="Close">{{ close | safe }}</button>
+        </div>
+      </article>
+
+      <article class="b-home">
+        <button class="b-home-btn" type="button" aria-expanded="false">
+          <span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M12 15h5"/></svg></span>
+          <span class="t">The terminal</span>
+          <span class="s">Back up, restore and search from a script.</span>
+          <span class="more">More</span>
+        </button>
+        <div class="b-zoom" aria-hidden="true">
+          <h3>The terminal</h3>
+          <p>The backtrack command checks, backs up, pauses, searches and restores. Add --json to status or search for output a script can read.</p>
+          <pre class="b-term"><span class="p">$ </span>backtrack status
+Your files are backed up.
+
+  Last backup   2026-11-05 14:00:04Z (12 minutes ago)
+  Next backup   2026-11-05 15:00:00Z (in 48 minutes)
+  Destination   reachable
+
+<span class="p">$ </span>backtrack search boarding   <span class="c"># finds it in every backup</span>
+<span class="p">$ </span>backtrack pause 2h          <span class="c"># no backups for two hours</span>
+<span class="p">$ </span>backtrack backup-now        <span class="c"># a backup, right now</span></pre>
+          <button class="b-close" type="button" aria-label="Close">{{ close | safe }}</button>
+        </div>
+      </article>
+
+      <article class="b-home">
+        <button class="b-home-btn" type="button" aria-expanded="false">
+          <span class="b-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 14h8"/></svg></span>
+          <span class="t">Keyboard and Orca</span>
+          <span class="s">Everything works from the keyboard, and Orca can read every control.</span>
+          <span class="more">More</span>
+        </button>
+        <div class="b-zoom" aria-hidden="true">
+          <h3>Keyboard and Orca</h3>
+          <p>Every control has a name a screen reader can read out. Backtrack follows your desktop’s light or dark style, and high contrast too. The shortcuts worth knowing:</p>
+          <ul class="b-kbds">
+            <li><kbd>Ctrl+F</kbd>Search every backup</li>
+            <li><kbd>Ctrl+T</kbd>Rewind</li>
+            <li><kbd>Ctrl+R</kbd>Restore</li>
+            <li><kbd>Ctrl+D</kbd>Compare with Today</li>
+            <li><kbd>Ctrl+H</kbd>Show hidden files</li>
+          </ul>
+          <button class="b-close" type="button" aria-label="Close">{{ close | safe }}</button>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner b-split">
+    <div>
+      <div class="b-tag"><b>09:00</b><span>Backup 6 of 13</span></div>
+      <h2 class="b-h2">Built on Borg, and <em>yours to keep.</em></h2>
+    </div>
+    <ul class="b-facts">
+      <li>Your backups are BorgBackup repositories, <b>encrypted on this computer</b> before they leave it and deduplicated, so each hour stores only what changed.</li>
+      <li>If Backtrack vanished tomorrow, <b>Borg alone could still open them.</b></li>
+      <li>When you set it up, you save a <b>recovery key</b>: a copy of your backups’ key. If the copy kept with the backups is ever damaged, the recovery key and your passphrase open them again.</li>
+      <li>Backtrack has <b>no telemetry</b>. Your backups go where you send them, and nothing else leaves your computer.</li>
+      <li>It’s <b>free software</b> under the GPL-3.0-or-later, and all of it is on GitHub.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>Wed 17:00</b><span>Backup 7 of 13</span></div>
+    <h2 class="b-h2">Your files, <em>not your system.</em></h2>
+    <div class="b-scope">
+      <div class="b-keeps">
+        <h3>What Backtrack keeps</h3>
+        <p>Your documents, pictures, music, downloads and desktop, with your app settings and your SSH and GPG keys, every hour. You can pick other folders instead.</p>
+        <ul class="b-chips"><li>Documents</li><li>Pictures</li><li>Music</li><li>Downloads</li><li>Desktop</li><li>App settings</li><li>SSH and GPG keys</li></ul>
+      </div>
+      <div class="b-leaves">
+        <h3>What it leaves alone</h3>
+        <p>The system itself: its programs, settings and updates. Timeshift looks after that, or Snapper on btrfs. If you use Snapper, Backtrack shows its snapshots in the timeline too.</p>
+        <ul class="b-chips"><li>Programs</li><li>System settings</li><li>Updates</li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="b-sec">
+  <div class="b-inner">
+    <div class="b-tag"><b>Wed 15:00</b><span>Backup 8 of 13</span></div>
+    <h2 class="b-h2">Questions people <em>ask first.</em></h2>
+    <dl class="b-qs">
+      <div class="b-tile"><dt>Can it open my Vorta or Pika Backup backups?</dt><dd>Yes. Choose Already have backups? when you set it up and point it at them. It leaves their own backups alone.</dd></div>
+      <div class="b-tile"><dt>Where can my backups go?</dt><dd>A USB drive, a network folder, or a server over SSH.</dd></div>
+      <div class="b-tile"><dt>Will it run on my computer?</dt><dd>Yes, if it runs GNOME, KDE Plasma, Hyprland, COSMIC, Xfce, Cinnamon, MATE or Sway. There are packages for Fedora 44 and later, Ubuntu 26.04 and later and Arch Linux, and the Flatpak runs on any distribution.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="b-sec" id="install">
+  <div class="b-inner b-get">
+    <div class="b-tag"><b>--:--</b><span>Before the first backup</span></div>
+    <h2 class="b-h2">Get Backtrack.</h2>
+    <span class="sr b-copied" aria-live="polite"></span>
+    <div class="b-ways">
+      {%- for way in config.extra.ways %}
+      <div class="b-way{% if loop.first %} first{% endif %}">
+        <h3>{{ way.name }}</h3><small>{{ way.from }}</small>
+        <div class="b-cmds">
+          {%- for c in way.commands %}
+          <div class="b-cmd"><code>{{ c.text }}</code><button class="b-copy" type="button" aria-label="{{ c.label }}" hidden>{{ copy | safe }}</button></div>
+          {%- endfor %}
+        </div>
+      </div>
+      {%- endfor %}
+    </div>
+    <a class="b-more" href="/install/">Every way, step by step →</a>
+  </div>
+</section>
+{% endblock main %}
