@@ -24,7 +24,9 @@ built, so the site always describes that release.
   the icon, the Friendly Manifesto badges, the picture link previews show,
   and `.well-known/org.friendlyhub.VerifiedApps.txt`, the token by which
   FriendlyHub knows that the app ID `tools.backtrack.Backtrack` belongs to
-  whoever runs this domain.
+  whoever runs this domain. `static/screenshots/` holds the pictures
+  software centres show beside Backtrack's listing: its metainfo names them,
+  so a name, once used, is never removed or renamed.
 - `scripts/fetch-docs` writes `content/guides/`, `content/install.md`,
   `content/changelog.md` and `assets/guides/images/` from Backtrack's
   repository. None of them is committed.
