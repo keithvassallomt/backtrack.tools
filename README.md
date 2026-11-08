@@ -14,7 +14,9 @@ through CloudFront.
 - `static/` is copied into the site as it is: the app's icon, and
   `.well-known/org.friendlyhub.VerifiedApps.txt`, the token by which
   FriendlyHub knows that the app ID `tools.backtrack.Backtrack` belongs to
-  whoever runs this domain.
+  whoever runs this domain. `static/screenshots/` holds the pictures
+  software centres show beside Backtrack's listing: its metainfo names them,
+  so a name, once used, is never removed or renamed.
 - `public/` is the built site. It is not committed.
 - `infra/provision` makes everything on AWS: a private S3 bucket in
   eu-south-1 that only the CloudFront distribution reads, the distribution
