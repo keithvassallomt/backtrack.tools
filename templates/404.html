@@ -1,11 +1,14 @@
-{% extends "coming-soon.html" %}
-{% block title %}Page not found · Backtrack{% endblock %}
+{% extends "base.html" %}
 {% block main %}
-  <main>
-    <img class="icon" src="/icon.svg" alt="" width="128" height="128">
-    <h1>Nothing here</h1>
-    <p class="tagline">There’s no page at this address.</p>
-    <a class="home" href="/">Go to Backtrack’s home page</a>
-    <footer>© 2026 Keith Vassallo</footer>
-  </main>
-{% endblock %}
+<div class="b-page">
+  <div class="b-lost">
+    <div class="b-tag"><b>--:--</b><span>Not in any backup</span></div>
+    <h1 class="b-title">Nothing <em>here.</em></h1>
+    <p class="b-intro">There’s no page at this address.</p>
+    <div class="b-acts">
+      <a class="b-btn go" href="/">Go to the home page</a>
+      <a class="b-btn" href="/guides/">See the guides</a>
+    </div>
+  </div>
+</div>
+{% endblock main %}

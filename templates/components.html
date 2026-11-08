@@ -1,0 +1,10 @@
+{#- A screenshot from docs/images, as WebP at no more than `width` pixels
+    wide, with its size given so the page does not jump as it loads. The
+    home page uses it, and so do the guides: fetch-docs turns a picture on a
+    line of its own into it. -#}
+{% component shot(src: string, alt: string, width: integer = 1600, class: string = "") %}
+{%- set path = "assets/guides/images/" ~ src -%}
+{%- set meta = get_image_metadata(path=path) -%}
+{%- set im = resize_image(path=path, width=(width if width < meta.width else meta.width), op="fit_width", format="webp", quality=82) -%}
+<img{% if class %} class="{{ class }}"{% endif %} src="{{ im.url }}" alt="{{ alt }}" width="{{ im.width }}" height="{{ im.height }}" loading="lazy" decoding="async">
+{%- endcomponent shot %}

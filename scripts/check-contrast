@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+"""Compute the contrast of every text colour against each background it is
+used on, in the dark and the light style, from the tokens in site.css.
+
+Text needs 4.5:1 (WCAG 2.2 AA, 1.4.3). The focus ring and the marks that
+carry meaning without words need 3:1 (1.4.11). A translucent background is
+blended over what lies beneath it first. Prints a table; exits 1 if any pair
+falls short.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+CSS = (Path(__file__).resolve().parent.parent / "static" / "site.css").read_text()
+
+TEXT, MARK = 4.5, 3.0
+# (what it is, foreground, background, the background's own backdrop, minimum)
+PAIRS = [
+    ("headings and strong text", "text", "bg", None, TEXT),
+    ("headings on a card", "text", "p1", None, TEXT),
+    ("keys, inline code", "text", "p2", None, TEXT),
+    ("text in a pop-up", "text", "pop", None, TEXT),
+    ("body text", "body", "bg", None, TEXT),
+    ("body text on a card", "body", "p1", None, TEXT),
+    ("body text in a pop-up", "body", "pop", None, TEXT),
+    ("quiet text", "muted", "bg", None, TEXT),
+    ("quiet text on a card", "muted", "p1", None, TEXT),
+    ("quiet text on a key", "muted", "p2", None, TEXT),
+    ("quiet text in a pop-up", "muted", "pop", None, TEXT),
+    ("back-card date, nearest", "muted", "s1", None, TEXT),
+    ("back-card date, farthest", "muted", "s5", None, TEXT),
+    ("lavender words", "lav", "bg", None, TEXT),
+    ("lavender on a card", "lav", "p1", None, TEXT),
+    ("lavender on a key", "lav", "p2", None, TEXT),
+    ("guide link in a pop-up", "lav", "pop", None, TEXT),
+    ("step numbers, picked moment", "lav", "tint", "bg", TEXT),
+    ("time (amber)", "amber", "bg", None, TEXT),
+    ("time on a card", "amber", "p1", None, TEXT),
+    ("button text", "btn-fg", "btn", None, TEXT),
+    ("'changed' badge", "amber-fg", "amber-mark", None, TEXT),
+    ("timeline date tip", "bg", "text", None, TEXT),
+    ("Get Backtrack panel", "inv-fg", "inv-bg", None, TEXT),
+    ("Get Backtrack card", "inv-fg", "inv-card", None, TEXT),
+    ("Get Backtrack, Flatpak card", "inv-fg", "inv-first", None, TEXT),
+    ("Get Backtrack, quiet", "inv-muted", "inv-bg", None, TEXT),
+    ("Get Backtrack, quiet on a card", "inv-muted", "inv-card", None, TEXT),
+    ("Get Backtrack, quiet on Flatpak card", "inv-muted", "inv-first", None, TEXT),
+    ("commands", "code-fg", "code-bg", None, TEXT),
+    ("copy button, terminal output", "code-dim", "code-bg", None, TEXT),
+    ("prompt sign", "code-p", "code-bg", None, TEXT),
+    ("terminal comment", "#9a97a3", "code-bg", None, TEXT),
+    ("focus ring", "amber-mark", "bg", None, MARK),
+    ("focus ring on a card", "amber-mark", "p1", None, MARK),
+    ("current backup, story dots", "amber-mark", "bg", None, MARK),
+    ("dots not in view", "dot-off", "bg", None, MARK),
+]
+
+
+def tokens(selector: str) -> dict[str, str]:
+    block = re.search(re.escape(selector) + r"\s*\{(.*?)\}", CSS, re.S).group(1)
+    return dict(re.findall(r"--([\w-]+):\s*([^;]+);", block))
+
+
+def rgba(value: str) -> tuple[float, float, float, float]:
+    value = value.strip()
+    if value.startswith("#"):
+        h = value[1:]
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        return int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 1.0
+    m = re.fullmatch(r"rgba?\(([^)]*)\)", value)
+    parts = [float(p) for p in m.group(1).replace(",", " ").split()]
+    return parts[0], parts[1], parts[2], parts[3] if len(parts) > 3 else 1.0
+
+
+def blend(top, under):
+    a = top[3]
+    return tuple(top[i] * a + under[i] * (1 - a) for i in range(3)) + (1.0,)
+
+
+def luminance(c) -> float:
+    def channel(v):
+        v /= 255
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+    r, g, b = (channel(v) for v in c[:3])
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def ratio(a, b) -> float:
+    la, lb = sorted((luminance(a), luminance(b)), reverse=True)
+    return (la + 0.05) / (lb + 0.05)
+
+
+def main() -> int:
+    dark = tokens(":root")
+    styles = {"dark": dark, "light": {**dark, **tokens(":root.light")}}
+    # Without the page's script, the light tokens come from a second copy
+    # under prefers-color-scheme; it must say the same.
+    if tokens(":root:not(.dark):not(.light)") != tokens(":root.light"):
+        print("check-contrast: the light tokens under prefers-color-scheme differ from :root.light's")
+        return 1
+    short = 0
+    for style, t in styles.items():
+        print(f"\n{style}")
+        for what, fg, bg, under, need in PAIRS:
+            colour = lambda name: rgba(name if name.startswith("#") else t[name])
+            back = colour(bg)
+            if back[3] < 1:
+                back = blend(back, colour(under))
+            r = ratio(blend(colour(fg), back), back)
+            ok = r >= need
+            short += not ok
+            print(f"  {'ok  ' if ok else 'FAIL'} {r:5.2f}:1 (needs {need}) {what}: {fg} on {bg}")
+    print(f"\ncheck-contrast: {len(PAIRS) * 2} pairs" + (f", {short} short of AA" if short else ", all meet AA"))
+    return 1 if short else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

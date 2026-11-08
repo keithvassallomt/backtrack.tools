@@ -1,6 +1,7 @@
 # Zola's settings for backtrack.tools. `just build` builds into public/.
 base_url = "https://backtrack.tools"
 title = "Backtrack"
+description = "Backtrack backs up your files every hour on GNOME, KDE and other Linux desktops. Open a folder as it was this morning or last week, find the file and bring it back."
 default_language = "en"
 
 compile_sass = false
@@ -10,8 +11,47 @@ minify_html = false
 
 [markdown]
 smart_punctuation = true
+lazy_async_image = true
 
 [slugify]
 paths = "on"
 taxonomies = "on"
 anchors = "on"
+
+[extra]
+repo = "https://github.com/keithvassallomt/backtrack"
+og_alt = "Rewind: a folder in front, its earlier backups receding behind it, and a timeline down the right"
+home_title = "Backtrack: hourly backups for the Linux desktop"
+
+# The home page's Get Backtrack section. scripts/check-site fails the build
+# unless every command here is, character for character, one the install
+# guide gives.
+[[extra.ways]]
+name = "Any distribution"
+from = "The Flatpak, from FriendlyHub"
+commands = [
+  { text = "flatpak install --user https://dl.friendlyhub.org/repo/appstream/tools.backtrack.Backtrack.flatpakref", label = "Copy the Flatpak command" },
+]
+
+[[extra.ways]]
+name = "Fedora 44+"
+from = "COPR"
+commands = [
+  { text = "sudo dnf copr enable keithvassallo/backtrack", label = "Copy the COPR command" },
+  { text = "sudo dnf install backtrack", label = "Copy the dnf command" },
+]
+
+[[extra.ways]]
+name = "Ubuntu 26.04+"
+from = "PPA"
+commands = [
+  { text = "sudo add-apt-repository ppa:keithvassallomt/backtrack", label = "Copy the PPA command" },
+  { text = "sudo apt install backtrack", label = "Copy the apt command" },
+]
+
+[[extra.ways]]
+name = "Arch Linux"
+from = "AUR"
+commands = [
+  { text = "yay -S backtrack", label = "Copy the AUR command" },
+]
