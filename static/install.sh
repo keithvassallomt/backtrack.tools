@@ -517,7 +517,7 @@ plan() {
                 NOTES+=("Then quit GNOME Files with nautilus -q, so it shows Backtrack's items when it opens again.")
             fi
             if [ "$NEW_FLATPAK" = 1 ]; then
-                NOTES+=("Log out and back in, and Backtrack is among your apps.")
+                NOTES=("Log out and back in, then open Backtrack from your apps to set it up." "${NOTES[@]}")
             fi
             ;;
     esac
@@ -563,10 +563,10 @@ confirm() {
 }
 
 #:## Your password
-#: Most steps install packages, so they need sudo. The script asks for your
-#: password once, before the first step, and keeps sudo from timing out
-#: while a long step such as an AUR build runs. It never sees the password
-#: itself: sudo asks for it.
+#: Most steps install packages, so they need sudo. Unless sudo already works
+#: without one, it asks for a password once, before the first step: yours on
+#: most systems, root's on openSUSE. The script never sees the password, and
+#: it keeps sudo from timing out while a long step such as an AUR build runs.
 password() {
     local i needs=0
     for ((i = 3; i < ${#STEPS[@]}; i += 4)); do
@@ -577,11 +577,13 @@ password() {
         say "These steps need sudo, which isn't installed. $SITE/install/ has the commands to run as root yourself."
         exit 1
     fi
-    printf '\n'
-    say "Some steps need your password, so sudo asks for it now."
-    # sudo itself asks, on the terminal, even when the script came through a pipe.
-    # shellcheck disable=SC2024
-    sudo -v </dev/tty || exit 1
+    if ! sudo -n true 2>/dev/null; then
+        printf '\n'
+        say "Some steps need sudo, so it asks for a password now."
+        # sudo itself asks, on the terminal, even when the script came through a pipe.
+        # shellcheck disable=SC2024
+        sudo -v </dev/tty || exit 1
+    fi
     (while kill -0 $$ 2>/dev/null; do
         sudo -n -v 2>/dev/null || exit 0
         sleep 50
@@ -609,7 +611,11 @@ finish() {
     if [ "$DRY_RUN" = 1 ]; then
         lines+=("That was a dry run, so nothing changed. Run it without --dry-run to install Backtrack.")
     else
-        lines+=("Backtrack is installed. Open it from your apps to set it up.")
+        if [ "${NEW_FLATPAK:-0}" = 1 ]; then
+            lines+=("Backtrack is installed.")
+        else
+            lines+=("Backtrack is installed. Open it from your apps to set it up.")
+        fi
     fi
     lines+=("${NOTES[@]}")
     if [ "$ROUTE" != flatpak ] && [ "$DRY_RUN" = 0 ] && wants nautilus; then
