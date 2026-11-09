@@ -532,7 +532,7 @@ show_plan() {
         lines+=("$n  ${STEPS[i]}" "\$ ${STEPS[i + 3]}")
         n=$((n + 1))
     done
-    for ((i = 0; i < ${#NOTES[@]}; i++)); do lines+=("Afterwards: ${NOTES[i]}"); done
+    if [ "${#NOTES[@]}" -gt 0 ]; then lines+=("Afterwards:" "${NOTES[@]}"); fi
     box "The plan: $(route_name "$ROUTE")" "${lines[@]}"
     if [ -n "$WHY" ]; then quiet "$WHY"; fi
 }
