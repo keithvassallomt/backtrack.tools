@@ -14,6 +14,9 @@
 #: curl -fsSL https://backtrack.tools/install.sh | bash
 #: ```
 #:
+#: If the terminal says curl isn't found, which can happen on Ubuntu, install
+#: it with `sudo apt install curl` and run the command again.
+#:
 #: To see what it would do on your computer, without changing anything:
 #:
 #: ```sh
