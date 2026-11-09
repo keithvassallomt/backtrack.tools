@@ -336,7 +336,7 @@ kbd { display: inline-flex; justify-content: center; min-width: 30px; padding: 2
 .b-tab[aria-selected="true"] { background: var(--inv-fg); color: var(--inv-bg); }
 .b-panel + .b-panel { margin-top: 40px; }
 .b-tabs:not([hidden]) ~ .b-panel + .b-panel { margin-top: 0; }
-.b-quick p { margin: 14px 0 0; max-width: 46em; color: var(--inv-muted); font-size: 15px; line-height: 1.55; }
+.b-quick p { margin: 14px 0 0; color: var(--inv-muted); font-size: 15px; line-height: 1.55; }
 .b-ways { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .b-way { min-width: 0; padding: 24px 26px; border-radius: 20px; background: var(--inv-card); border: 1px solid var(--inv-card-line); }
 .b-way.first { grid-column: 1 / -1; background: var(--inv-first); border-color: var(--inv-first-line); }
