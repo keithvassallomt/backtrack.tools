@@ -23,9 +23,17 @@ repo = "https://github.com/keithvassallomt/backtrack"
 og_alt = "Rewind: a folder in front, its earlier backups receding behind it, and a timeline down the right"
 home_title = "Backtrack: hourly backups for the Linux desktop"
 
-# The home page's Get Backtrack section. scripts/check-site fails the build
+# The home page's Get Backtrack section: the quick way, the install script
+# (S21-T3), then each way of its own. scripts/check-site fails the build
 # unless every command here is, character for character, one the install
-# guide gives.
+# guide or the install script's page gives.
+[extra.quick]
+name = "One command"
+from = "For any distribution"
+text = "curl -fsSL https://backtrack.tools/install.sh | bash"
+label = "Copy the install command"
+say = "It works out the right way for your computer, shows you what it will do, and installs nothing until you say yes."
+
 [[extra.ways]]
 name = "Any distribution"
 from = "The Flatpak, from FriendlyHub"

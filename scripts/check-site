@@ -6,7 +6,10 @@
 - The sections Backtrack's Preferences link to, and the screenshots its
   software-centre listing shows, are there.
 - Every command in the home page's Get Backtrack section is, character for
-  character, a line of a command the install page gives.
+  character, a line of a command the install page or the install script's
+  page gives.
+- The install script's page shows every line of the install script, in
+  order: it is made from the script, and must not fall out of step with it.
 - The changelog shows no Unreleased section.
 
 Prints each fault and exits 1 if there is any. Links to other sites are not
@@ -36,6 +39,9 @@ REQUIRED = [
     "/screenshots/restore.png",
     "/screenshots/search.png",
     "/screenshots/file-manager.png",
+    # The install script, and what it does (S21-T3).
+    "/install.sh",
+    "/install-script/",
 ]
 
 
@@ -106,15 +112,35 @@ def main() -> int:
 
     home = (PUBLIC / "index.html").read_text()
     install = (PUBLIC / "install" / "index.html").read_text()
+    script_page = (PUBLIC / "install-script" / "index.html").read_text()
     given = set()
-    for block in re.findall(r"<pre[^>]*><code[^>]*>(.*?)</code></pre>", install, re.S):
-        given.update(line.strip() for line in html.unescape(block).splitlines())
+    for page in (install, script_page):
+        for block in re.findall(r"<pre[^>]*><code[^>]*>(.*?)</code></pre>", page, re.S):
+            given.update(line.strip() for line in html.unescape(block).splitlines())
     shown = [html.unescape(c) for c in re.findall(r'<div class="b-cmd"><code>(.*?)</code>', home, re.S)]
     if not shown:
         faults.append("/: the Get Backtrack section shows no commands")
     for command in shown:
         if command not in given:
             faults.append(f"/: the command `{command}` is not one the install page gives")
+
+    shown_lines = [
+        line
+        for block in re.findall(r"<pre[^>]*><code>(.*?)</code></pre>", script_page, re.S)
+        for line in html.unescape(block).splitlines()
+    ]
+    script_lines = [
+        line for line in (PUBLIC / "install.sh").read_text().splitlines()
+        if line.strip() and not re.match(r"\s*#:", line)
+    ]
+    at = 0
+    for line in script_lines:
+        while at < len(shown_lines) and shown_lines[at] != line:
+            at += 1
+        if at == len(shown_lines):
+            faults.append(f"/install-script/: does not show this line of install.sh, in its place: {line.strip()}")
+            break
+        at += 1
 
     changelog = (PUBLIC / "changelog" / "index.html").read_text()
     if re.search(r"unreleased", changelog, re.I):

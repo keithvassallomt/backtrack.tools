@@ -1,0 +1,25 @@
+{#- What the install script does, at /install-script/: made by
+    scripts/script-page from static/install.sh, and laid out as a guide is. -#}
+{% extends "base.html" %}
+{% block main %}
+<div class="b-page">
+  <div class="b-page-head">
+    <div class="b-tag"><span>The install script</span></div>
+    <h1 class="b-title">{{ page.title }}</h1>
+  </div>
+  <div class="b-doc">
+    <nav class="b-toc" aria-label="On this page">
+      <h2>On this page</h2>
+      <ul>
+        {%- for h in page.toc %}
+        <li><a href="#{{ h.id }}">{{ h.title }}</a></li>
+        {%- endfor %}
+      </ul>
+      <p class="all"><a href="/install/">Every way to install, by hand</a></p>
+    </nav>
+    <article class="prose">
+{{ page.content | safe }}
+    </article>
+  </div>
+</div>
+{% endblock main %}

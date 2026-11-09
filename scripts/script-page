@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Make the What the install script does page from the install script.
+
+Reads static/install.sh and writes content/install-script.md, served at
+/install-script/. In the script, a line that starts with "#:" (after any
+indent) is the page's text: "#:## Title" a heading, "#: words" a line of
+Markdown, "#:" alone an empty line. Every other line is code, and goes on the
+page in order, so the page always shows every line of the script and cannot
+fall out of step with it. Code before the first text comes just after it, so
+the page opens with words rather than the script's first line.
+
+scripts/check-site checks the built page against the script as well.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+SCRIPT = ROOT / "static" / "install.sh"
+PAGE = ROOT / "content" / "install-script.md"
+TEXT = re.compile(r"^\s*#:(.*)$")
+
+FRONT = """+++
+title = "What the install script does"
+description = "The install script installs Backtrack the way the install guide would for your computer, after asking you. This is the script, every line of it, with what each part does."
+template = "script.html"
++++
+"""
+
+
+def chunks(lines: list[str]) -> list[tuple[str, list[str]]]:
+    """The script as runs of text and code, in order."""
+    runs: list[tuple[str, list[str]]] = []
+    for line in lines:
+        m = TEXT.match(line)
+        kind, body = ("text", m.group(1).removeprefix(" ")) if m else ("code", line)
+        if runs and runs[-1][0] == kind:
+            runs[-1][1].append(body)
+        else:
+            runs.append((kind, [body]))
+    if len(runs) > 1 and runs[0][0] == "code":
+        runs[0], runs[1] = runs[1], runs[0]
+    merged: list[tuple[str, list[str]]] = []
+    for kind, body in runs:
+        if merged and merged[-1][0] == kind:
+            merged[-1][1].extend(body)
+        else:
+            merged.append((kind, list(body)))
+    return merged
+
+
+def code_block(body: list[str]) -> str:
+    while body and not body[0].strip():
+        body = body[1:]
+    while body and not body[-1].strip():
+        body = body[:-1]
+    if not body:
+        return ""
+    fence = "```"
+    while any(line.lstrip().startswith(fence) for line in body):
+        fence += "`"
+    return fence + "\n" + "\n".join(body) + "\n" + fence
+
+
+def main() -> int:
+    if not SCRIPT.exists():
+        sys.exit(f"script-page: {SCRIPT} is missing")
+    parts = []
+    for kind, body in chunks(SCRIPT.read_text().splitlines()):
+        part = "\n".join(body).strip("\n") if kind == "text" else code_block(body)
+        if part:
+            parts.append(part)
+    PAGE.write_text(FRONT + "\n" + "\n\n".join(parts) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -5,6 +5,8 @@ infra/resources.env.new
 /content/guides/
 /content/install.md
 /content/changelog.md
+# Written by scripts/script-page from static/install.sh, never committed.
+/content/install-script.md
 /assets/
 # Zola's cache of the WebP pictures it makes.
 /static/processed_images/

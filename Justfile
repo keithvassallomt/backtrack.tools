@@ -7,6 +7,7 @@ fetch-docs REF="":
 # Build the site into public/, then check its links, commands and contrast. Needs `just fetch-docs` once.
 build:
     @test -f content/install.md || { echo "No guides yet: run 'just fetch-docs' (or 'just fetch-docs main') first."; exit 1; }
+    scripts/script-page
     zola build
     scripts/check-site
     scripts/check-contrast > /dev/null || scripts/check-contrast
@@ -14,6 +15,7 @@ build:
 # Show the site on http://localhost:1111, rebuilt whenever a file changes.
 serve:
     @test -f content/install.md || { echo "No guides yet: run 'just fetch-docs' (or 'just fetch-docs main') first."; exit 1; }
+    scripts/script-page
     zola serve
 
 # Fetch from the newest release, build, check, then publish to backtrack.tools. Any failure uploads nothing.

@@ -110,6 +110,41 @@
     pre.appendChild(button);
   });
 
+  /* ---- Get Backtrack: the quick way, or choose your own ---- */
+
+  // Without this, both panels show one after the other. With it, they are
+  // tabs as ARIA describes them: the arrow keys, Home and End move between
+  // them, and only the chosen one is in the Tab order.
+  var tablist = document.querySelector('.b-tabs');
+  if (tablist) {
+    var tabs = tablist.querySelectorAll('[role="tab"]');
+    var choose = function (tab, focus) {
+      each(tabs, function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        document.getElementById(t.getAttribute('aria-controls')).hidden = !on;
+      });
+      if (focus) tab.focus();
+    };
+    each(tabs, function (tab, i) {
+      var panel = document.getElementById(tab.getAttribute('aria-controls'));
+      panel.setAttribute('role', 'tabpanel');
+      panel.setAttribute('aria-labelledby', tab.id);
+      tab.addEventListener('click', function () { choose(tab, false); });
+      tab.addEventListener('keydown', function (e) {
+        var n = tabs.length, to = null;
+        if (e.key === 'ArrowRight') to = (i + 1) % n;
+        else if (e.key === 'ArrowLeft') to = (i + n - 1) % n;
+        else if (e.key === 'Home') to = 0;
+        else if (e.key === 'End') to = n - 1;
+        if (to !== null) { e.preventDefault(); choose(tabs[to], true); }
+      });
+    });
+    tablist.hidden = false;
+    choose(tabs[0], false);
+  }
+
   /* ---- A guide's contents: the section being read is marked ---- */
 
   var tocLinks = document.querySelectorAll('.b-toc a[href^="#"]');

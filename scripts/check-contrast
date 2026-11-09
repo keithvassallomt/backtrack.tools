@@ -46,6 +46,7 @@ PAIRS = [
     ("Get Backtrack, quiet", "inv-muted", "inv-bg", None, TEXT),
     ("Get Backtrack, quiet on a card", "inv-muted", "inv-card", None, TEXT),
     ("Get Backtrack, quiet on Flatpak card", "inv-muted", "inv-first", None, TEXT),
+    ("Get Backtrack, the chosen tab", "inv-bg", "inv-fg", None, TEXT),
     ("commands", "code-fg", "code-bg", None, TEXT),
     ("copy button, terminal output", "code-dim", "code-bg", None, TEXT),
     ("prompt sign", "code-p", "code-bg", None, TEXT),

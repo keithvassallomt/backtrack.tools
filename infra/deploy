@@ -10,6 +10,7 @@ cd "$(dirname "$0")/.."
 # shellcheck source=/dev/null
 . infra/resources.env
 scripts/fetch-docs
+scripts/script-page
 zola build
 scripts/check-site
 scripts/check-contrast > /dev/null || scripts/check-contrast

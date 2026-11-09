@@ -355,6 +355,22 @@ Your files are backed up.
     <div class="b-tag"><b>--:--</b><span>Before the first backup</span></div>
     <h2 class="b-h2">Get Backtrack.</h2>
     <span class="sr b-copied" aria-live="polite"></span>
+    {#- Two tabs once site.js has made them; without it, both panels show. #}
+    <div class="b-tabs" role="tablist" aria-label="Ways to get Backtrack" hidden>
+      <button class="b-tab" type="button" role="tab" id="get-quick-tab" aria-controls="get-quick" aria-selected="true">The quick way</button>
+      <button class="b-tab" type="button" role="tab" id="get-own-tab" aria-controls="get-own" aria-selected="false" tabindex="-1">Choose your own way</button>
+    </div>
+    <div class="b-panel" id="get-quick">
+      <div class="b-way first b-quick">
+        <h3>{{ config.extra.quick.name }}</h3><small>{{ config.extra.quick.from }}</small>
+        <div class="b-cmds">
+          <div class="b-cmd"><code>{{ config.extra.quick.text }}</code><button class="b-copy" type="button" aria-label="{{ config.extra.quick.label }}" hidden>{{ copy | safe }}</button></div>
+        </div>
+        <p>{{ config.extra.quick.say }}</p>
+      </div>
+      <a class="b-more" href="/install-script/">What this script does →</a>
+    </div>
+    <div class="b-panel" id="get-own">
     <div class="b-ways">
       {%- for way in config.extra.ways %}
       <div class="b-way{% if loop.first %} first{% endif %}">
@@ -368,6 +384,7 @@ Your files are backed up.
       {%- endfor %}
     </div>
     <a class="b-more" href="/install/">Every way, step by step →</a>
+    </div>
   </div>
 </section>
 {% endblock main %}
