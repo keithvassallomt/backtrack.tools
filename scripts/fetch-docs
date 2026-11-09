@@ -274,6 +274,10 @@ def main() -> None:
     parser.add_argument("ref", nargs="?", help="tag, branch or commit; the newest release tag by default")
     parser.add_argument("--repo", default=REPO_URL + ".git", help="where to fetch Backtrack from")
     args = parser.parse_args()
+    # git runs inside the cache, where a relative path would point elsewhere
+    # (`../backtrack` would even find the cache itself, as ../backtrack.git).
+    if Path(args.repo).exists():
+        args.repo = str(Path(args.repo).resolve())
     update_cache(args.repo)
     ref = args.ref or newest_release()
     if object_type(ref, "") != "tree":
